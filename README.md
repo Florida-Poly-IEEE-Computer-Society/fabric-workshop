@@ -110,7 +110,7 @@ from wherever you created it.
 
 If Git is not installed or does not work on your computer, download the provided ZIP file instead:
 
-[DOWNLOAD ZIP HERE]()
+[DOWNLOAD ZIP HERE](blob:https://github.com/a0d2b07f-455e-4511-a209-441cf22670ef)
 
 Extract the ZIP file, then return to VSCode and use:
 
