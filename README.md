@@ -151,6 +151,8 @@ It takes care of things such as:
 
 You don't have to understand the entire Gradle configuration for this workshop, but figuring out how it works is a worthwhile endeavor. It'll get you familiar with how build systems work, which is important for being a developer in general.
 
+> If Java is not recognized, an older version appears, or Gradle says that it is using an older version of Java, see [Fixing Java 25 When Another Java Version Is Being Used](#fixing-java-25-when-another-java-version-is-being-used).
+
 ---
 
 # 6. Look Around the Project
@@ -260,29 +262,49 @@ Open:
 gradle.properties
 ```
 
-Look for properties such as:
+Look for:
 
 ```properties
-maven_group=com.example
-archive_base_name=fabric-example-mod
+group=com.example
 ```
 
-Change them to values for your project.
+Change it to something appropriate for your project.
 
 For example:
 
 ```properties
-maven_group=com.lastnamefirstname
-archive_base_name=no-crop-trample
+group=com.lastnamefirstname
 ```
 
-Your Maven group is normally written like a reversed domain name.
+Your group is normally written like a reversed domain name.
 
 For this project, something simple like this is fine:
 
 ```properties
-maven_group=com.anthony
+group=com.anthony
 ```
+
+## Edit `settings.gradle`
+
+Open:
+
+```text
+settings.gradle
+```
+
+Near the bottom, you should see:
+
+```gradle
+rootProject.name = 'modid'
+```
+
+Change it to:
+
+```gradle
+rootProject.name = 'nocroptrample'
+```
+
+This should match the ID we are going to give our mod.
 
 ---
 
@@ -319,6 +341,38 @@ For example:
 The ID is the internal identifier Fabric uses for your mod, generally simpler is better.
 
 > Mod IDs generally use lowercase letters without spaces.
+
+## Remove the Fabric API Dependency
+
+The example project includes Fabric API by default, but this mod does not actually use it.
+
+Open:
+
+```text
+build.gradle
+```
+
+and remove the Fabric API dependency line:
+
+```gradle
+implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+```
+
+Then return to:
+
+```text
+src/main/resources/fabric.mod.json
+```
+
+and remove:
+
+```json
+"fabric-api": "*"
+```
+
+from the `depends` section.
+
+This leaves us with a Fabric Loader + Mixin mod without an unnecessary Fabric API dependency.
 
 ---
 
@@ -447,7 +501,7 @@ The first question is:
 
 > Where does Minecraft implement this behavior?
 
-Search the generated Minecraft source for the `FarmBlock` class.
+Search the generated Minecraft source for the `FarmlandBlock` class.
 
 In VSCode, press:
 
@@ -458,14 +512,14 @@ Ctrl + P
 Then type:
 
 ```text
-#FarmBlock
+#FarmlandBlock
 ```
 
-and select the Minecraft `FarmBlock` class from the results.
+and select the Minecraft `FarmlandBlock` class from the results.
 
-Once you have `FarmBlock` open, look for the method responsible for an entity landing on the block.
+Once you have `FarmlandBlock` open, look for the method responsible for an entity landing on the block.
 
-You should find a method named something similar to:
+For Minecraft 26.3, you should find this method:
 
 ```java
 fallOn(...)
@@ -481,7 +535,7 @@ This method contains Minecraft's farmland trampling behavior. If you go on to cr
 
 # 14. But We Should Not Edit Minecraft's Code
 
-It may be tempting to open `FarmBlock.java` and simply delete the code, however, this won't work.
+It may be tempting to open `FarmlandBlock.java` and simply delete the code, however, this won't work.
 
 Minecraft's source code is not actually part of our project (due to copyright concerns). Its being provided to us so we can inspect it, and write something that modifies the bytecode at runtime.
 
@@ -496,7 +550,7 @@ A Mixin allows us to modify the behavior of an existing Minecraft class without 
 Conceptually, think of it this way:
 
 ```text
-When Minecraft reaches FarmBlock.fallOn(...),
+When Minecraft reaches FarmlandBlock.fallOn(...),
 run our code instead of, before, or after a portion of the original behavior.
 ```
 
@@ -541,16 +595,16 @@ src/main/java/com/example/mixin/
 Create:
 
 ```text
-FarmBlockMixin.java
+FarmlandBlockMixin.java
 ```
 
-The class should target Minecraft's `FarmBlock`.
+The class should target Minecraft's `FarmlandBlock`.
 
 The structure will look approximately like this:
 
 ```java
-@Mixin(FarmBlock.class)
-public class FarmBlockMixin {
+@Mixin(FarmlandBlock.class)
+public class FarmlandBlockMixin {
 
 }
 ```
@@ -558,7 +612,7 @@ public class FarmBlockMixin {
 Import:
 
 ```java
-net.minecraft.world.level.block.FarmBlock
+net.minecraft.world.level.block.FarmlandBlock
 ```
 
 and:
@@ -610,10 +664,10 @@ In general, exact parameter types of Minecraft methods can change between Minecr
 The important idea is:
 
 ```java
-callback.cancel();
+ci.cancel();
 ```
 
-This prevents the original `FarmBlock.fallOn()` implementation from continuing.
+This prevents the original `FarmlandBlock.fallOn()` implementation from continuing.
 
 Here is something that will work for this workshop:
 
@@ -623,7 +677,7 @@ package com.example.mixin;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.FarmBlock;
+import net.minecraft.world.level.block.FarmlandBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import org.spongepowered.asm.mixin.Mixin;
@@ -631,8 +685,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(FarmBlock.class)
-public class FarmBlockMixin {
+@Mixin(FarmlandBlock.class)
+public class FarmlandBlockMixin {
 
     @Inject(
         method = "fallOn",
@@ -661,7 +715,7 @@ Without our Mixin, Minecraft does roughly this:
 ```text
 Entity falls
     V
-FarmBlock.fallOn()
+FarmlandBlock.fallOn()
     V
 Minecraft checks fall conditions
     V
@@ -673,7 +727,7 @@ With our Mixin:
 ```text
 Entity falls
     V
-FarmBlock.fallOn()
+FarmlandBlock.fallOn()
     V
 Our Mixin runs first
     V
@@ -692,25 +746,15 @@ This is one of the fundamental ideas behind Minecraft modding.
 
 # 19. Register the Mixin
 
-Now that we've written the Mixin, Fabric needs to know which Mixins belong to our mod.
+Now that we've written the Mixin, we need to add it to the Mixin configuration that the example project already uses.
 
-The example mod repository might already contain a Mixin configuration file.
-
-Look in:
+Open:
 
 ```text
-src/main/resources/
+src/main/resources/modid.mixins.json
 ```
 
-for something similar to:
-
-```text
-modid.mixins.json
-```
-
-Open it.
-
-It will look roughly like:
+It should look roughly like:
 
 ```json
 {
@@ -718,6 +762,7 @@ It will look roughly like:
   "package": "com.example.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "ExampleMixin"
   ],
   "injectors": {
     "defaultRequire": 1
@@ -725,19 +770,43 @@ It will look roughly like:
 }
 ```
 
-Add your Mixin class to the list:
+Replace `ExampleMixin` with our new Mixin:
 
 ```json
 "mixins": [
-    "FarmBlockMixin"
+    "FarmlandBlockMixin"
 ]
 ```
 
-Do not include `.java`, just the name.
+Do not include `.java`, just the class name.
 
-Fabric also needs this Mixin configuration to appear in the `mixins` section of `fabric.mod.json`.
+You can also delete the old `ExampleMixin.java` file since we are not using it anymore.
 
-The example project normally already demonstrates this setup.
+We do not need to add anything new to `fabric.mod.json`, because the example project already registers this Mixin configuration:
+
+```json
+"mixins": [
+  "modid.mixins.json",
+  {
+    "config": "modid.client.mixins.json",
+    "environment": "client"
+  }
+]
+```
+
+These are two separate entries.
+
+`modid.mixins.json` is the normal Mixin configuration, so this is where `FarmlandBlockMixin` belongs.
+
+`modid.client.mixins.json` is only loaded on the client because it has:
+
+```json
+"environment": "client"
+```
+
+We are not using the client-only Mixin configuration for this mod.
+
+> The filename `modid.mixins.json` does not have to match the mod ID. You can leave it named `modid.mixins.json` for this workshop. If you rename the file, make sure you also change its filename in the `mixins` section of `fabric.mod.json`.
 
 ---
 
@@ -791,10 +860,6 @@ The programming language our mod uses.
 
 Loads our mod into Minecraft.
 
-### Fabric API
-
-Provides APIs commonly used by Fabric mods.
-
 ### Gradle
 
 Builds and launches our project.
@@ -818,7 +883,7 @@ Read the Minecraft source
         V
 Find a useful method
         V
-Use Fabric APIs or a Mixin
+Use a Fabric API hook or a Mixin
         V
 Run Minecraft
         V
@@ -908,7 +973,6 @@ Make sure the Minecraft instance has:
 
 - Fabric Loader
 - The correct Minecraft version
-- Fabric API, if required by the project (this one doesn't)
 - Your mod
 
 Start Minecraft using the Fabric profile.
@@ -992,6 +1056,51 @@ Go Flying
 
 If we do not reach this section during the workshop, it makes a good project to continue experimenting with afterward.
 ---
+
+# Workshop Checkpoints
+
+By the end of the workshop, you should have completed these four checkpoints:
+
+### Checkpoint 1
+
+Minecraft launches from the Fabric development environment.
+
+### Checkpoint 2
+
+Your own Java code runs when Fabric loads the mod.
+
+### Checkpoint 3
+
+Farmland can no longer be trampled.
+
+### Checkpoint 4
+
+Your mod builds into a working `.jar`.
+
+If you reached all four, you have completed the basic workflow for developing a Fabric Minecraft mod.
+
+---
+
+# Where to Go From Here
+
+The no crop trample mod is intentionally small, and only really targets a behavior I particularly dislike.
+
+The same development process can be used to create much larger projects, though.
+
+Some possible next projects:
+
+- Add a custom item
+- Add a custom block
+- Add a new crafting recipe
+- Create a command
+- Change mob behavior (sprinter zombies 🤔??)
+- Add a new enchantment
+- Add custom status effects
+- Create custom weapons
+- Add new world generation (this one is hard, though)
+- Add keybinds
+- Create a configuration menu
+- Modify other vanilla mechanics with Mixins
 
 # Troubleshooting
 
@@ -1111,50 +1220,224 @@ For example:
 
 ---
 
-# Workshop Checkpoints
+# Fixing Java 25 When Another Java Version Is Being Used
 
-By the end of the workshop, you should have completed these four checkpoints:
+If you have multiple versions of Java installed, your computer may not automatically use JDK 25.
 
-### Checkpoint 1
+When you run:
 
-Minecraft launches from the Fabric development environment.
+```bash
+java --version
+```
 
-### Checkpoint 2
+your system generally uses the first Java installation it finds in its `PATH`.
 
-Your own Java code runs when Fabric loads the mod.
+VSCode and Gradle can also select their own Java runtime, so it is possible for `java --version` to show one version while Gradle uses another.
 
-### Checkpoint 3
+If you see an error similar to:
 
-Farmland can no longer be trampled.
+```text
+Dependency requires at least JVM runtime version 25.
+This build uses a Java 21 JVM.
+```
 
-### Checkpoint 4
+you need to make sure JDK 25 is actually being used.
 
-Your mod builds into a working `.jar`.
+## Windows
 
-If you reached all four, you have completed the basic workflow for developing a Fabric Minecraft mod.
+First, check which Java installations Windows can find:
+
+```bash
+where.exe java
+```
+
+You may see something like:
+
+```text
+C:\Program Files\Eclipse Adoptium\jdk-21...\bin\java.exe
+C:\Program Files\Eclipse Adoptium\jdk-17...\bin\java.exe
+C:\Users\YourName\AppData\Local\Programs\Eclipse Adoptium\jdk-25...\bin\java.exe
+```
+
+Windows will normally use the first one in this list.
+
+Check your current Java version with:
+
+```bash
+java --version
+```
+
+If JDK 25 is not being used, open:
+
+```text
+Start -> Edit the system environment variables -> Environment Variables
+```
+
+Make sure `JAVA_HOME` points to your JDK 25 installation.
+
+For example:
+
+```text
+C:\Users\YourName\AppData\Local\Programs\Eclipse Adoptium\jdk-25...
+```
+
+Then make sure your `Path` contains:
+
+```text
+%JAVA_HOME%\bin
+```
+
+and that it appears before older Java installations.
+
+Close and reopen VSCode after making these changes.
+
+Then check again:
+
+```bash
+java --version
+```
+
+You should see Java 25.
+
+### If VSCode Gradle Still Uses Java 21
+
+VSCode's Java extensions may use their own Java runtime even if your terminal is correctly using Java 25.
+
+If the Gradle output contains something like:
+
+```text
+Java Home: C:\Users\YourName\.vscode\extensions\redhat.java...\jre\21...
+```
+
+open the VSCode Command Palette:
+
+```text
+Ctrl + Shift + P
+```
+
+Then select:
+
+```text
+Preferences: Open User Settings (JSON)
+```
+
+Add:
+
+```json
+"java.import.gradle.java.home": "C:\\path\\to\\your\\jdk-25"
+```
+
+For example:
+
+```json
+"java.import.gradle.java.home": "C:\\Users\\YourName\\AppData\\Local\\Programs\\Eclipse Adoptium\\jdk-25.0.4.101-hotspot"
+```
+
+Save the file.
+
+Then open the Command Palette again and run:
+
+```text
+Java: Clean Java Language Server Workspace
+```
+
+Allow VSCode to restart.
 
 ---
 
-# Where to Go From Here
+## macOS
 
-The no crop trample mod is intentionally small, and only really targets a behavior I particularly dislike.
+First, check which JDKs are installed:
 
-The same development process can be used to create much larger projects, though.
+```bash
+/usr/libexec/java_home -V
+```
 
-Some possible next projects:
+You should see JDK 25 somewhere in the list.
 
-- Add a custom item
-- Add a custom block
-- Add a new crafting recipe
-- Create a command
-- Change mob behavior (sprinter zombies 🤔??)
-- Add a new enchantment
-- Add custom status effects
-- Create custom weapons
-- Add new world generation (this one is hard, though)
-- Add keybinds
-- Create a configuration menu
-- Modify other vanilla mechanics with Mixins
+To find its location, run:
+
+```bash
+/usr/libexec/java_home -v 25
+```
+
+To use Java 25 in your current terminal, run:
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 25)
+export PATH="$JAVA_HOME/bin:$PATH"
+```
+
+Then check:
+
+```bash
+java --version
+```
+
+You should see Java 25.
+
+To make this permanent, add the same lines to your shell configuration file.
+
+For the default macOS shell, this will normally be:
+
+```text
+~/.zshrc
+```
+
+Add:
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 25)
+export PATH="$JAVA_HOME/bin:$PATH"
+```
+
+Then restart your terminal or run:
+
+```bash
+source ~/.zshrc
+```
+
+### If VSCode Gradle Still Uses an Older Java Version
+
+Open the VSCode Command Palette:
+
+```text
+Cmd + Shift + P
+```
+
+Then select:
+
+```text
+Preferences: Open User Settings (JSON)
+```
+
+Find the JDK 25 path with:
+
+```bash
+/usr/libexec/java_home -v 25
+```
+
+Then add that path to your VSCode settings:
+
+```json
+"java.import.gradle.java.home": "/path/to/your/jdk-25"
+```
+
+For example:
+
+```json
+"java.import.gradle.java.home": "/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home"
+```
+
+Save the file.
+
+Then open the Command Palette again and run:
+
+```text
+Java: Clean Java Language Server Workspace
+```
+
+Allow VSCode to restart.
 
 # Resources
 
